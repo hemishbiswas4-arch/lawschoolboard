@@ -11,6 +11,34 @@ function extractMissingColumn(error) {
   return null;
 }
 
+function getErrorText(error) {
+  return [error?.message, error?.details, error?.hint].filter(Boolean).join(' ');
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function shouldParseWeeklySchedule(error, payload) {
+  const errorText = getErrorText(error).toLowerCase();
+  return typeof payload.weeklyschedule === 'string' &&
+    errorText.includes('weeklyschedule') &&
+    (errorText.includes('json') || error?.code === '22p02');
+}
+
+function shouldStringifyWeeklySchedule(error, payload) {
+  const errorText = getErrorText(error).toLowerCase();
+  return isPlainObject(payload.weeklyschedule) &&
+    errorText.includes('weeklyschedule') &&
+    (
+      errorText.includes('type text') ||
+      errorText.includes('type character varying') ||
+      errorText.includes('type varchar') ||
+      errorText.includes('expression is of type json') ||
+      errorText.includes('expression is of type jsonb')
+    );
+}
+
 async function runCourseWrite(operation, initialPayload) {
   const payload = { ...initialPayload };
 
@@ -22,6 +50,16 @@ async function runCourseWrite(operation, initialPayload) {
     if (missingColumn && Object.prototype.hasOwnProperty.call(payload, missingColumn)) {
       console.warn(`Dropping unsupported course column "${missingColumn}" before retrying save.`);
       delete payload[missingColumn];
+      continue;
+    }
+
+    if (shouldParseWeeklySchedule(error, payload)) {
+      payload.weeklyschedule = JSON.parse(payload.weeklyschedule);
+      continue;
+    }
+
+    if (shouldStringifyWeeklySchedule(error, payload)) {
+      payload.weeklyschedule = JSON.stringify(payload.weeklyschedule);
       continue;
     }
 

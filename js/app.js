@@ -42,6 +42,25 @@ let currentTrimester = '1';
 let currentCourses = [];
 let subscription = null;
 
+function readScheduleMap(value) {
+  if (!value) return {};
+
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (error) {
+      return {};
+    }
+  }
+
+  if (typeof value === 'object') {
+    return value;
+  }
+
+  return {};
+}
+
 // Initialization
 function init() {
   onAuthStateChange(async (event, session) => {
@@ -137,7 +156,7 @@ function renderCourses() {
     let todayRoom = 'No class today';
     try {
       if (course.weeklyschedule) {
-        const sched = JSON.parse(course.weeklyschedule);
+        const sched = readScheduleMap(course.weeklyschedule);
         const dayOfWeek = new Date().getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
         if (sched[dayOfWeek] && sched[dayOfWeek].trim() !== '') {
           todayRoom = sched[dayOfWeek];
@@ -279,11 +298,7 @@ function openEditModal(course) {
   document.getElementById('edit-topic').value = course.topic || '';
   document.getElementById('edit-outline').value = course.outline || '';
   
-  // Parse schedule JSON
-  let sched = {};
-  try {
-    if (course.weeklyschedule) sched = JSON.parse(course.weeklyschedule);
-  } catch (e) {} // ignore parse errors
+  const sched = readScheduleMap(course.weeklyschedule);
   
   for(let i=1; i<=6; i++) {
     document.getElementById(`edit-sched-${i}`).value = sched[i] || '';
@@ -307,6 +322,13 @@ function openEditModal(course) {
 async function handleEditSubmit(e) {
   e.preventDefault();
   const id = document.getElementById('edit-course-id').value;
+  const name = document.getElementById('edit-name').value.trim() || 'Untitled Course';
+  const section = document.getElementById('edit-section').value.trim();
+  const professor = document.getElementById('edit-professor').value.trim() || 'TBA';
+  const topic = document.getElementById('edit-topic').value.trim();
+  const outline = document.getElementById('edit-outline').value.trim();
+  const totalSessionsInput = parseInt(document.getElementById('edit-total-sessions').value, 10);
+  const currentSessionInput = parseInt(document.getElementById('edit-current-session').value, 10);
   
   let sched = {};
   for(let i=1; i<=6; i++) {
@@ -315,14 +337,14 @@ async function handleEditSubmit(e) {
   }
 
   const updates = {
-    name: document.getElementById('edit-name').value,
-    section: document.getElementById('edit-section').value,
-    professor: document.getElementById('edit-professor').value,
-    currentsession: parseInt(document.getElementById('edit-current-session').value),
-    totalsessions: parseInt(document.getElementById('edit-total-sessions').value),
-    topic: document.getElementById('edit-topic').value,
-    outline: document.getElementById('edit-outline').value,
-    weeklyschedule: JSON.stringify(sched),
+    name,
+    section: section || null,
+    professor,
+    currentsession: Number.isFinite(currentSessionInput) && currentSessionInput >= 0 ? currentSessionInput : 0,
+    totalsessions: Number.isFinite(totalSessionsInput) && totalSessionsInput > 0 ? totalSessionsInput : 30,
+    topic: topic || null,
+    outline: outline || null,
+    weeklyschedule: Object.keys(sched).length ? sched : null,
     updatedby: currentUser.email
   };
   
@@ -434,7 +456,7 @@ async function handleAddCourse(e) {
     topic: topic || null,
     iselective: isElective,
     status: 'active',
-    weeklyschedule: Object.keys(sched).length ? JSON.stringify(sched) : null,
+    weeklyschedule: Object.keys(sched).length ? sched : null,
     updatedby: currentUser.email
   };
   

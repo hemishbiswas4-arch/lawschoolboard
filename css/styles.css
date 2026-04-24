@@ -190,6 +190,15 @@ body {
   color: var(--text);
 }
 
+.preference-btn {
+  width: auto;
+  padding: 0 0.75rem;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 /* ========== YEAR NAV ========== */
 
 #year-nav {
@@ -524,14 +533,118 @@ body {
 }
 
 .onboarding-content {
-  max-width: 420px;
+  max-width: 560px;
+}
+
+.onboarding-form {
+  padding: 1.25rem;
+}
+
+.onboarding-header {
+  align-items: flex-start;
+}
+
+.onboarding-eyebrow {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.35rem;
 }
 
 .onboarding-note {
-  font-size: 0.75rem;
+  font-size: 0.82rem;
   color: var(--text-dim);
+  line-height: 1.7;
+  margin-bottom: 1.5rem;
+}
+
+.preference-group + .preference-group {
+  margin-top: 1.25rem;
+}
+
+.preference-group-label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.55rem;
+}
+
+.preference-pill-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.preference-pill-grid-years,
+.preference-pill-grid-trimesters {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.preference-pill {
+  position: relative;
+  display: block;
+  cursor: pointer;
+}
+
+.preference-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.preference-pill-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.5rem;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
+    var(--bg);
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+  text-align: center;
+  transition: border-color var(--transition), transform var(--transition), color var(--transition), background var(--transition), box-shadow var(--transition);
+}
+
+.preference-pill:hover .preference-pill-title {
+  border-color: var(--border-light);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+.preference-input:checked + .preference-pill-title {
+  border-color: rgba(212, 168, 67, 0.55);
+  color: var(--text);
+  background:
+    linear-gradient(180deg, rgba(212, 168, 67, 0.16), rgba(212, 168, 67, 0.05)),
+    var(--bg);
+  box-shadow: 0 0 0 1px rgba(212, 168, 67, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.onboarding-preview {
+  margin-top: 1.25rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid rgba(212, 168, 67, 0.18);
+  border-radius: 12px;
+  background: rgba(212, 168, 67, 0.08);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
   line-height: 1.6;
-  margin-bottom: 1.25rem;
+}
+
+.onboarding-actions {
+  margin-top: 1rem;
 }
 
 /* Admin Sidebar Layout */
@@ -764,6 +877,12 @@ body {
   opacity: 0.85;
 }
 
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .btn-secondary {
   background: none;
   color: var(--text-dim);
@@ -968,6 +1087,11 @@ body {
     display: none;
   }
 
+  .preference-pill-grid-years,
+  .preference-pill-grid-trimesters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .modal-content {
     max-height: 92vh;
   }
@@ -1014,6 +1138,15 @@ body {
 }
 
 @media (max-width: 400px) {
+  .preference-pill-grid-years,
+  .preference-pill-grid-trimesters {
+    grid-template-columns: 1fr;
+  }
+
+  .preference-btn {
+    display: none;
+  }
+
   .brand-mark {
     font-size: 2.5rem;
   }

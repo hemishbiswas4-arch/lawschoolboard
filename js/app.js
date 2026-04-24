@@ -1,4 +1,4 @@
-import { signInWithGoogle, signOut, onAuthStateChange, isNLSEmail, checkIsAdmin, getUserEmail, getBoardPreference, saveBoardPreference } from './auth.js';
+import { signInWithGoogle, signOut, onAuthStateChange, isNLSEmail, checkIsAdmin, getUserEmail, getBoardPreference, loadBoardPreference, saveBoardPreference } from './auth.js';
 import { fetchCourses, subscribeToCourses, updateCourse, createCourse, deleteCourse } from './data.js';
 import { addAdmin, fetchAdmins, verifyAdminPassword } from './admin.js';
 import { supabase } from './supabase.js';
@@ -8,11 +8,15 @@ const loginScreen = document.getElementById('login-screen');
 const boardScreen = document.getElementById('board-screen');
 const googleBtn = document.getElementById('google-signin-btn');
 const signoutBtn = document.getElementById('signout-btn');
+const boardPreferenceBtn = document.getElementById('board-preference-btn');
 const userEmailEl = document.getElementById('user-email');
 const adminToggleBtn = document.getElementById('admin-toggle-btn');
 const onboardingModal = document.getElementById('onboarding-modal');
 const onboardingForm = document.getElementById('onboarding-form');
 const onboardingFeedback = document.getElementById('onboarding-feedback');
+const onboardingPreview = document.getElementById('onboarding-preview');
+const onboardingYearInputs = document.querySelectorAll('input[name="preferred-year"]');
+const onboardingTrimesterInputs = document.querySelectorAll('input[name="preferred-trimester"]');
 
 const yearTabs = document.querySelectorAll('.year-tab');
 const triTabs = document.querySelectorAll('.tri-tab');
@@ -114,6 +118,40 @@ function normalizeTrimester(value) {
   return ['1', '2', '3'].includes(String(value)) ? String(value) : DEFAULT_TRIMESTER;
 }
 
+function getTrimesterLabel(value) {
+  return {
+    '1': 'Trimester I',
+    '2': 'Trimester II',
+    '3': 'Trimester III'
+  }[normalizeTrimester(value)];
+}
+
+function setCheckedPreference(inputs, value) {
+  let didSelect = false;
+
+  inputs.forEach(input => {
+    const shouldCheck = input.value === value;
+    input.checked = shouldCheck;
+    if (shouldCheck) {
+      didSelect = true;
+    }
+  });
+
+  if (!didSelect && inputs[0]) {
+    inputs[0].checked = true;
+  }
+}
+
+function getSelectedPreferenceValue(name, fallback) {
+  return document.querySelector(`input[name="${name}"]:checked`)?.value || fallback;
+}
+
+function updateOnboardingPreview() {
+  const selectedYear = getSelectedPreferenceValue('preferred-year', currentYear);
+  const selectedTrimester = getSelectedPreferenceValue('preferred-trimester', currentTrimester);
+  onboardingPreview.textContent = `You'll open directly to Year ${selectedYear} / ${getTrimesterLabel(selectedTrimester)}.`;
+}
+
 function syncBoardSelectionUi() {
   yearTabs.forEach(tab => {
     tab.classList.toggle('active', tab.dataset.year === currentYear);
@@ -141,8 +179,12 @@ function setBoardSelection(year, trimester, { load = true } = {}) {
 }
 
 function openOnboardingModal(preference = null) {
-  document.getElementById('onboarding-year').value = preference?.year || currentYear || DEFAULT_YEAR;
-  document.getElementById('onboarding-trimester').value = preference?.trimester || currentTrimester || DEFAULT_TRIMESTER;
+  const selectedYear = normalizeYear(preference?.year || currentYear || DEFAULT_YEAR);
+  const selectedTrimester = normalizeTrimester(preference?.trimester || currentTrimester || DEFAULT_TRIMESTER);
+
+  setCheckedPreference(onboardingYearInputs, selectedYear);
+  setCheckedPreference(onboardingTrimesterInputs, selectedTrimester);
+  updateOnboardingPreview();
   onboardingFeedback.textContent = '';
   onboardingFeedback.className = 'feedback';
   onboardingModal.classList.remove('hidden');
@@ -158,7 +200,7 @@ function init() {
     if (session) {
       currentUser = session.user;
       const email = getUserEmail(session);
-      const boardPreference = getBoardPreference(session.user);
+      const cachedBoardPreference = getBoardPreference(session.user);
       
       if (!isNLSEmail(email)) {
         showToast('Only @nls.ac.in accounts are allowed.', 'error');
@@ -168,12 +210,23 @@ function init() {
       
       userEmailEl.textContent = email;
       isAdmin = await checkIsAdmin(email);
-      setBoardSelection(boardPreference?.year || DEFAULT_YEAR, boardPreference?.trimester || DEFAULT_TRIMESTER, { load: false });
+      setBoardSelection(cachedBoardPreference?.year || DEFAULT_YEAR, cachedBoardPreference?.trimester || DEFAULT_TRIMESTER, { load: false });
       // Admin toggle is always visible so users can enter the password to become admin
       adminToggleBtn.classList.remove('hidden');
       
       showBoard();
-      loadData();
+      let boardPreference = cachedBoardPreference;
+
+      try {
+        boardPreference = await loadBoardPreference(session.user);
+      } catch (error) {
+        console.error('Unable to load board preference:', error);
+        showToast('Unable to load your saved board. Using the default view instead.', 'error');
+      }
+
+      setBoardSelection(boardPreference?.year || DEFAULT_YEAR, boardPreference?.trimester || DEFAULT_TRIMESTER, { load: false });
+      await loadData();
+
       if (boardPreference) {
         closeOnboardingModal();
       } else {
@@ -339,6 +392,10 @@ function setupEventListeners() {
   });
   
   signoutBtn.addEventListener('click', () => signOut());
+  boardPreferenceBtn.addEventListener('click', () => openOnboardingModal(getBoardPreference(currentUser) || {
+    year: currentYear,
+    trimester: currentTrimester
+  }));
   
   // Navigation
   yearTabs.forEach(tab => {
@@ -365,6 +422,8 @@ function setupEventListeners() {
   addAdminForm.addEventListener('submit', handleAddAdmin);
   adminPasswordForm.addEventListener('submit', handleAdminPassword);
   onboardingForm.addEventListener('submit', handleOnboardingSubmit);
+  onboardingYearInputs.forEach(input => input.addEventListener('change', updateOnboardingPreview));
+  onboardingTrimesterInputs.forEach(input => input.addEventListener('change', updateOnboardingPreview));
   
   // Dynamic total sessions for electives
   document.getElementById('add-elective-check').addEventListener('change', (e) => {
@@ -608,8 +667,8 @@ async function handleOnboardingSubmit(e) {
   e.preventDefault();
   const submitButton = onboardingForm.querySelector('button[type="submit"]');
   const originalLabel = submitButton.textContent;
-  const year = document.getElementById('onboarding-year').value;
-  const trimester = document.getElementById('onboarding-trimester').value;
+  const year = getSelectedPreferenceValue('preferred-year', DEFAULT_YEAR);
+  const trimester = getSelectedPreferenceValue('preferred-trimester', DEFAULT_TRIMESTER);
 
   onboardingFeedback.textContent = '';
   onboardingFeedback.className = 'feedback';
@@ -617,11 +676,13 @@ async function handleOnboardingSubmit(e) {
   submitButton.textContent = 'Saving...';
 
   try {
-    const updatedUser = await saveBoardPreference(year, trimester);
-    currentUser = updatedUser || currentUser;
-    setBoardSelection(year, trimester);
+    const result = await saveBoardPreference(year, trimester);
+    currentUser = result?.user || currentUser;
+    setBoardSelection(result?.preference?.year || year, result?.preference?.trimester || trimester);
     closeOnboardingModal();
-    showToast('Default board saved');
+    showToast(result?.persistence === 'database'
+      ? 'Default board saved'
+      : 'Default board saved on this device');
   } catch (error) {
     onboardingFeedback.textContent = error.message || 'Unable to save your board preference.';
     onboardingFeedback.className = 'feedback error';

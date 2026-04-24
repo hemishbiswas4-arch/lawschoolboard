@@ -108,3 +108,49 @@ BEGIN;
   CREATE PUBLICATION supabase_realtime;
 COMMIT;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.courses;
+
+-- Table: user_preferences
+CREATE TABLE IF NOT EXISTS public.user_preferences (
+    user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    preferred_year SMALLINT NOT NULL CHECK (preferred_year BETWEEN 1 AND 5),
+    preferred_trimester SMALLINT NOT NULL CHECK (preferred_trimester BETWEEN 1 AND 3),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE OR REPLACE FUNCTION public.touch_user_preferences_updated_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    NEW.updated_at = timezone('utc'::text, now());
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS touch_user_preferences_updated_at ON public.user_preferences;
+CREATE TRIGGER touch_user_preferences_updated_at
+    BEFORE UPDATE ON public.user_preferences
+    FOR EACH ROW
+    EXECUTE FUNCTION public.touch_user_preferences_updated_at();
+
+ALTER TABLE public.user_preferences ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view their own board preference" ON public.user_preferences;
+CREATE POLICY "Users can view their own board preference"
+    ON public.user_preferences FOR SELECT
+    TO authenticated
+    USING ((SELECT auth.uid()) = user_id);
+
+DROP POLICY IF EXISTS "Users can insert their own board preference" ON public.user_preferences;
+CREATE POLICY "Users can insert their own board preference"
+    ON public.user_preferences FOR INSERT
+    TO authenticated
+    WITH CHECK ((SELECT auth.uid()) = user_id);
+
+DROP POLICY IF EXISTS "Users can update their own board preference" ON public.user_preferences;
+CREATE POLICY "Users can update their own board preference"
+    ON public.user_preferences FOR UPDATE
+    TO authenticated
+    USING ((SELECT auth.uid()) = user_id)
+    WITH CHECK ((SELECT auth.uid()) = user_id);

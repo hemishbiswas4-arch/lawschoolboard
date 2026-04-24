@@ -44,6 +44,7 @@
       </div>
       <div class="header-right">
         <span id="user-email" class="user-email"></span>
+        <button id="board-preference-btn" class="header-btn preference-btn" type="button" title="Default Board">Default</button>
         <button id="admin-toggle-btn" class="header-btn hidden" title="Admin Panel">⚙</button>
         <button id="signout-btn" class="header-btn" title="Sign Out">↗</button>
       </div>
@@ -85,33 +86,63 @@
   <div id="onboarding-modal" class="modal hidden">
     <div class="modal-backdrop"></div>
     <div class="modal-content onboarding-content">
-      <div class="modal-header">
-        <h2>Set Your Default Board</h2>
+      <div class="modal-header onboarding-header">
+        <div>
+          <p class="onboarding-eyebrow">Quick Setup</p>
+          <h2>Pick Your Home Board</h2>
+        </div>
       </div>
-      <form id="onboarding-form">
-        <p class="onboarding-note">Choose your year and trimester once. We’ll open this board automatically whenever you sign back in.</p>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="onboarding-year">Year</label>
-            <select id="onboarding-year" required>
-              <option value="1">Year 1</option>
-              <option value="2">Year 2</option>
-              <option value="3">Year 3</option>
-              <option value="4">Year 4</option>
-              <option value="5">Year 5</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="onboarding-trimester">Trimester</label>
-            <select id="onboarding-trimester" required>
-              <option value="1">Trimester I</option>
-              <option value="2">Trimester II</option>
-              <option value="3">Trimester III</option>
-            </select>
+      <form id="onboarding-form" class="onboarding-form">
+        <p class="onboarding-note">Choose the board you want to land on after signing in. We'll save it to your account so future visits open there automatically.</p>
+
+        <div class="preference-group">
+          <span class="preference-group-label">Year</span>
+          <div class="preference-pill-grid preference-pill-grid-years">
+            <label class="preference-pill">
+              <input class="preference-input" type="radio" name="preferred-year" value="1" checked>
+              <span class="preference-pill-title">Year 1</span>
+            </label>
+            <label class="preference-pill">
+              <input class="preference-input" type="radio" name="preferred-year" value="2">
+              <span class="preference-pill-title">Year 2</span>
+            </label>
+            <label class="preference-pill">
+              <input class="preference-input" type="radio" name="preferred-year" value="3">
+              <span class="preference-pill-title">Year 3</span>
+            </label>
+            <label class="preference-pill">
+              <input class="preference-input" type="radio" name="preferred-year" value="4">
+              <span class="preference-pill-title">Year 4</span>
+            </label>
+            <label class="preference-pill">
+              <input class="preference-input" type="radio" name="preferred-year" value="5">
+              <span class="preference-pill-title">Year 5</span>
+            </label>
           </div>
         </div>
-        <div class="form-actions">
-          <button type="submit" class="btn-primary">Save Preference</button>
+
+        <div class="preference-group">
+          <span class="preference-group-label">Trimester</span>
+          <div class="preference-pill-grid preference-pill-grid-trimesters">
+            <label class="preference-pill">
+              <input class="preference-input" type="radio" name="preferred-trimester" value="1" checked>
+              <span class="preference-pill-title">Trimester I</span>
+            </label>
+            <label class="preference-pill">
+              <input class="preference-input" type="radio" name="preferred-trimester" value="2">
+              <span class="preference-pill-title">Trimester II</span>
+            </label>
+            <label class="preference-pill">
+              <input class="preference-input" type="radio" name="preferred-trimester" value="3">
+              <span class="preference-pill-title">Trimester III</span>
+            </label>
+          </div>
+        </div>
+
+        <p id="onboarding-preview" class="onboarding-preview">You'll open directly to Year 1 / Trimester I.</p>
+
+        <div class="form-actions onboarding-actions">
+          <button type="submit" class="btn-primary">Save Default Board</button>
         </div>
         <p id="onboarding-feedback" class="feedback"></p>
       </form>

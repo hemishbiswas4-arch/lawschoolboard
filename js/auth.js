@@ -5,7 +5,16 @@ const VALID_PREFERENCE_TRIMESTERS = ['1', '2', '3'];
 const BOARD_PREFERENCE_STORAGE_KEY = 'nls-board-preference';
 
 function getAuthRedirectUrl() {
-  const configuredUrl = import.meta.env.VITE_APP_URL?.trim();
+  let configuredUrl = '';
+  try {
+    // Safely check for import.meta.env to prevent crashes on simple static servers
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
+      configuredUrl = import.meta.env.VITE_APP_URL?.trim();
+    }
+  } catch (e) {
+    // Ignore environment error
+  }
+
   if (configuredUrl) {
     try {
       const normalizedConfiguredUrl = configuredUrl.replace(/\/+$/, '');
@@ -14,7 +23,6 @@ function getAuthRedirectUrl() {
       const configuredIsLocalhost = ['localhost', '127.0.0.1'].includes(configuredHost);
       const currentIsLocalhost = ['localhost', '127.0.0.1'].includes(currentHost);
 
-      // Never let a production page inherit a localhost redirect target.
       if (!configuredIsLocalhost || currentIsLocalhost) {
         return normalizedConfiguredUrl;
       }
@@ -63,23 +71,13 @@ function normalizeBoardPreference(preference) {
   return { year, trimester };
 }
 
-function readMetadataBoardPreference(user) {
-  return normalizeBoardPreference({
-    preferred_year: user?.user_metadata?.preferred_year,
-    preferred_trimester: user?.user_metadata?.preferred_trimester
-  });
-}
-
 function readCachedBoardPreference(user) {
   if (!user?.id) return null;
-
   try {
     const rawPreference = window.localStorage.getItem(BOARD_PREFERENCE_STORAGE_KEY);
     if (!rawPreference) return null;
-
     const parsedPreference = JSON.parse(rawPreference);
     if (parsedPreference?.userId !== user.id) return null;
-
     return normalizeBoardPreference(parsedPreference);
   } catch (error) {
     return null;
@@ -88,96 +86,59 @@ function readCachedBoardPreference(user) {
 
 function cacheBoardPreference(user, preference) {
   if (!user?.id) return;
-
   try {
     if (!preference) {
-      const rawPreference = window.localStorage.getItem(BOARD_PREFERENCE_STORAGE_KEY);
-      const parsedPreference = rawPreference ? JSON.parse(rawPreference) : null;
-      if (parsedPreference?.userId === user.id) {
-        window.localStorage.removeItem(BOARD_PREFERENCE_STORAGE_KEY);
-      }
+      window.localStorage.removeItem(BOARD_PREFERENCE_STORAGE_KEY);
       return;
     }
-
     window.localStorage.setItem(BOARD_PREFERENCE_STORAGE_KEY, JSON.stringify({
       userId: user.id,
       year: preference.year,
       trimester: preference.trimester
     }));
   } catch (error) {
-    // Ignore storage failures. The database remains the source of truth.
+    // Ignore
   }
 }
 
-function isMissingPreferencesTableError(error) {
-  const errorCode = error?.code || '';
-  const message = error?.message || '';
-
-  return errorCode === '42P01'
-    || errorCode === 'PGRST205'
-    || message.toLowerCase().includes('user_preferences');
-}
-
-async function writeBoardPreferenceToDatabase(user, preference) {
-  const { data, error } = await supabase
-    .from('user_preferences')
-    .upsert({
-      user_id: user.id,
-      preferred_year: parseInt(preference.year, 10),
-      preferred_trimester: parseInt(preference.trimester, 10)
-    }, { onConflict: 'user_id' })
-    .select('preferred_year, preferred_trimester')
-    .maybeSingle();
-
-  if (error) throw error;
-
-  return normalizeBoardPreference(data) || preference;
-}
-
 export function getBoardPreference(user) {
-  return readCachedBoardPreference(user) || readMetadataBoardPreference(user);
+  // We don't rely on user_metadata anymore, strictly cache or DB
+  return readCachedBoardPreference(user);
 }
 
 export async function loadBoardPreference(user = null) {
-  const currentUser = user || (await supabase.auth.getUser()).data.user;
+  const currentUser = user || (await supabase.auth.getSession()).data.session?.user;
   const fallbackPreference = getBoardPreference(currentUser);
 
   if (!currentUser?.id) {
     return fallbackPreference;
   }
 
-  const { data, error } = await supabase
-    .from('user_preferences')
-    .select('preferred_year, preferred_trimester')
-    .eq('user_id', currentUser.id)
-    .maybeSingle();
+  try {
+    const { data, error } = await Promise.race([
+      supabase.from('user_preferences')
+        .select('preferred_year, preferred_trimester')
+        .eq('user_id', currentUser.id)
+        .maybeSingle(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Network timeout')), 4000))
+    ]);
 
-  if (error) {
-    if (isMissingPreferencesTableError(error)) {
-      cacheBoardPreference(currentUser, fallbackPreference);
+    if (error) {
+      console.error('Error loading preference from DB:', error);
       return fallbackPreference;
     }
 
-    throw error;
-  }
-
-  const databasePreference = normalizeBoardPreference(data);
-
-  if (!databasePreference && fallbackPreference) {
-    try {
-      const migratedPreference = await writeBoardPreferenceToDatabase(currentUser, fallbackPreference);
-      cacheBoardPreference(currentUser, migratedPreference);
-      return migratedPreference;
-    } catch (migrationError) {
-      if (!isMissingPreferencesTableError(migrationError)) {
-        console.warn('Unable to backfill board preference into the database:', migrationError);
-      }
+    const databasePreference = normalizeBoardPreference(data);
+    if (databasePreference) {
+      cacheBoardPreference(currentUser, databasePreference);
+      return databasePreference;
     }
+    
+    return fallbackPreference;
+  } catch (e) {
+    console.error('Load preference error:', e);
+    return fallbackPreference;
   }
-
-  const resolvedPreference = databasePreference || fallbackPreference;
-  cacheBoardPreference(currentUser, resolvedPreference);
-  return resolvedPreference;
 }
 
 export async function saveBoardPreference(year, trimester) {
@@ -187,41 +148,44 @@ export async function saveBoardPreference(year, trimester) {
     throw new Error('Please choose a valid year and trimester.');
   }
 
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError) throw userError;
-  if (!user) throw new Error('Please sign in again and retry.');
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !session?.user) throw new Error('Please sign in again and retry.');
+  const user = session.user;
+
+  // Immediately cache to unblock UI if network is slow
+  cacheBoardPreference(user, preference);
 
   try {
-    const savedPreference = await writeBoardPreferenceToDatabase(user, preference);
+    // Wrap the DB call in a timeout
+    const { data, error } = await Promise.race([
+      supabase.from('user_preferences').upsert({
+        user_id: user.id,
+        preferred_year: parseInt(preference.year, 10),
+        preferred_trimester: parseInt(preference.trimester, 10)
+      }, { onConflict: 'user_id' }).select('preferred_year, preferred_trimester').maybeSingle(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Network timeout')), 6000))
+    ]);
+
+    if (error) {
+      console.error('Database update error:', error);
+      throw error;
+    }
+    
+    const savedPreference = normalizeBoardPreference(data) || preference;
     cacheBoardPreference(user, savedPreference);
+
     return {
       user,
       preference: savedPreference,
       persistence: 'database'
     };
-  } catch (error) {
-    if (!isMissingPreferencesTableError(error)) {
-      throw error;
-    }
-
-    const existingMetadata = user.user_metadata || {};
-    const { error: metadataError } = await supabase.auth.updateUser({
-      data: {
-        ...existingMetadata,
-        preferred_year: preference.year,
-        preferred_trimester: preference.trimester
-      }
-    });
-
-    if (metadataError) {
-      throw new Error('Board preferences table is missing in Supabase. Run the SQL in the repo to enable account-wide saving.');
-    }
-
-    cacheBoardPreference(user, preference);
+  } catch (e) {
+    console.error('Save preference error:', e);
+    // Even if it fails (e.g. table doesn't exist), return the local persistence so UI proceeds
     return {
       user,
       preference,
-      persistence: 'metadata'
+      persistence: 'local'
     };
   }
 }
@@ -240,6 +204,10 @@ export function onAuthStateChange(callback) {
 
 export async function checkIsAdmin(email) {
   if (!email) return false;
-  const { data } = await supabase.from('admins').select('email').eq('email', email.toLowerCase()).maybeSingle();
-  return !!data;
+  try {
+    const { data } = await supabase.from('admins').select('email').eq('email', email.toLowerCase()).maybeSingle();
+    return !!data;
+  } catch (e) {
+    return false;
+  }
 }

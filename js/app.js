@@ -4,6 +4,7 @@ import { addAdmin, fetchAdmins, verifyAdminPassword } from './admin.js';
 import { supabase } from './supabase.js';
 
 // DOM Elements
+const initScreen = document.getElementById('init-screen');
 const loginScreen = document.getElementById('login-screen');
 const boardScreen = document.getElementById('board-screen');
 const googleBtn = document.getElementById('google-signin-btn');
@@ -194,72 +195,111 @@ function closeOnboardingModal() {
   onboardingModal.classList.add('hidden');
 }
 
-// Initialization
-function init() {
-  onAuthStateChange(async (event, session) => {
-    if (session) {
-      currentUser = session.user;
-      const email = getUserEmail(session);
-      const cachedBoardPreference = getBoardPreference(session.user);
-      
-      if (!isNLSEmail(email)) {
-        showToast('Only @nls.ac.in accounts are allowed.', 'error');
-        await signOut();
-        return;
-      }
-      
-      userEmailEl.textContent = email;
-      isAdmin = await checkIsAdmin(email);
-      setBoardSelection(cachedBoardPreference?.year || DEFAULT_YEAR, cachedBoardPreference?.trimester || DEFAULT_TRIMESTER, { load: false });
-      // Admin toggle is always visible so users can enter the password to become admin
-      adminToggleBtn.classList.remove('hidden');
-      
-      showBoard();
-      let boardPreference = cachedBoardPreference;
+async function handleSessionState(session) {
+  if (session) {
+    currentUser = session.user;
+    const email = getUserEmail(session);
+    const cachedBoardPreference = getBoardPreference(session.user);
+    
+    if (!isNLSEmail(email)) {
+      showToast('Only @nls.ac.in accounts are allowed.', 'error');
+      await signOut();
+      return;
+    }
+    
+    userEmailEl.textContent = email;
+    isAdmin = await checkIsAdmin(email);
+    setBoardSelection(cachedBoardPreference?.year || DEFAULT_YEAR, cachedBoardPreference?.trimester || DEFAULT_TRIMESTER, { load: false });
+    adminToggleBtn.classList.remove('hidden');
+    
+    showBoard();
+    let boardPreference = cachedBoardPreference;
 
-      try {
-        boardPreference = await loadBoardPreference(session.user);
-      } catch (error) {
-        console.error('Unable to load board preference:', error);
-        showToast('Unable to load your saved board. Using the default view instead.', 'error');
-      }
+    try {
+      boardPreference = await loadBoardPreference(session.user);
+    } catch (error) {
+      console.error('Unable to load board preference:', error);
+      showToast('Unable to load your saved board. Using the default view instead.', 'error');
+    }
 
-      setBoardSelection(boardPreference?.year || DEFAULT_YEAR, boardPreference?.trimester || DEFAULT_TRIMESTER, { load: false });
-      await loadData();
+    setBoardSelection(boardPreference?.year || DEFAULT_YEAR, boardPreference?.trimester || DEFAULT_TRIMESTER, { load: false });
+    await loadData();
 
-      if (boardPreference) {
-        closeOnboardingModal();
-      } else {
-        openOnboardingModal();
-      }
-      
-      // Setup realtime listener
-      if (subscription) subscription.unsubscribe();
-      subscription = subscribeToCourses(handleRealtimeUpdate);
-    } else {
-      currentUser = null;
-      isAdmin = false;
+    if (boardPreference) {
       closeOnboardingModal();
-      if (subscription) {
-        subscription.unsubscribe();
-        subscription = null;
-      }
+    } else {
+      openOnboardingModal();
+    }
+    
+    if (subscription) subscription.unsubscribe();
+    subscription = subscribeToCourses(handleRealtimeUpdate);
+  } else {
+    currentUser = null;
+    isAdmin = false;
+    closeOnboardingModal();
+    if (subscription) {
+      subscription.unsubscribe();
+      subscription = null;
+    }
+    showLogin();
+  }
+}
+
+// Initialization
+async function init() {
+  // Hard timeout set FIRST — guarantees the spinner never gets permanently stuck
+  const sessionTimeout = setTimeout(() => {
+    if (initScreen && initScreen.classList.contains('active')) {
+      console.warn('Session check timed out — falling back to login screen.');
       showLogin();
     }
-  });
+  }, 5000);
 
-  setupEventListeners();
+  // Safe event listener setup — crash here won't block session check
+  try {
+    setupEventListeners();
+  } catch (e) {
+    console.error('setupEventListeners failed:', e);
+  }
+
+  try {
+    const sessionPromise = supabase.auth.getSession();
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('getSession timeout')), 4500)
+    );
+    const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
+    clearTimeout(sessionTimeout);
+    await handleSessionState(session);
+  } catch (e) {
+    clearTimeout(sessionTimeout);
+    console.error('Initial session check failed:', e);
+    await handleSessionState(null);
+  }
+
+  onAuthStateChange(async (event, session) => {
+    if (event === 'INITIAL_SESSION') return;
+    await handleSessionState(session);
+  });
 }
 
 function showLogin() {
+  if (initScreen) {
+    initScreen.classList.remove('active');
+    initScreen.classList.remove('init-loading');
+    initScreen.style.display = 'none';
+  }
   loginScreen.classList.add('active');
   boardScreen.classList.remove('active');
 }
 
 function showBoard() {
+  if (initScreen) {
+    initScreen.classList.remove('active');
+    initScreen.classList.remove('init-loading');
+    initScreen.style.display = 'none';
+  }
   loginScreen.classList.remove('active');
-  boardScreen.classList.active = true;
-  boardScreen.classList.add('active'); // Added to fix rendering
+  boardScreen.classList.add('active');
 }
 
 function showToast(message, type = 'success') {
@@ -289,7 +329,35 @@ function handleRealtimeUpdate(payload) {
   loadData();
 }
 
-// UI Rendering
+function getTodayRoom(course) {
+  let todayRoom = 'No class today';
+  try {
+    if (course.weeklyschedule) {
+      const sched = readScheduleMap(course.weeklyschedule);
+      const dayOfWeek = new Date().getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+      if (sched[dayOfWeek] && sched[dayOfWeek].trim() !== '') {
+        todayRoom = sched[dayOfWeek];
+      } else {
+        let nextDay = -1;
+        for(let i=1; i<=7; i++) {
+          const checkDay = (dayOfWeek + i) % 7;
+          if(sched[checkDay] && sched[checkDay].trim() !== '') {
+            nextDay = checkDay;
+            break;
+          }
+        }
+        if(nextDay !== -1) {
+          const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+          todayRoom = `Next: ${dayNames[nextDay]} (${sched[nextDay]})`;
+        }
+      }
+    }
+  } catch (e) {
+    todayRoom = course.weeklyschedule || 'TBA';
+  }
+  return todayRoom;
+}
+
 function renderCourses() {
   courseGrid.innerHTML = '';
   if (currentCourses.length === 0) {
@@ -300,81 +368,88 @@ function renderCourses() {
   
   emptyState.classList.add('hidden');
   
+  // Group courses by name
+  const groupedCourses = {};
   currentCourses.forEach(course => {
-    const tile = document.createElement('div');
-    tile.className = 'course-tile';
-    tile.dataset.id = course.id;
-    const sectionTone = getSectionTone(course.section);
-    tile.style.setProperty('--tile-accent', sectionTone.accent);
-    tile.style.setProperty('--tile-accent-soft', sectionTone.soft);
-    tile.style.setProperty('--tile-accent-glow', sectionTone.glow);
-    
-    let todayRoom = 'No class today';
-    try {
-      if (course.weeklyschedule) {
-        const sched = readScheduleMap(course.weeklyschedule);
-        const dayOfWeek = new Date().getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-        if (sched[dayOfWeek] && sched[dayOfWeek].trim() !== '') {
-          todayRoom = sched[dayOfWeek];
-        } else {
-          // Find next available class
-          let nextDay = -1;
-          for(let i=1; i<=7; i++) {
-            const checkDay = (dayOfWeek + i) % 7;
-            if(sched[checkDay] && sched[checkDay].trim() !== '') {
-              nextDay = checkDay;
-              break;
-            }
-          }
-          if(nextDay !== -1) {
-            const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-            todayRoom = `Next: ${dayNames[nextDay]} (${sched[nextDay]})`;
-          }
-        }
-      }
-    } catch (e) {
-      // Fallback if it's legacy text
-      todayRoom = course.weeklyschedule || 'TBA';
+    const key = course.name || 'Untitled Course';
+    if (!groupedCourses[key]) {
+      groupedCourses[key] = [];
     }
+    groupedCourses[key].push(course);
+  });
 
-    const sectionBadge = course.section
-      ? `<span class="tile-section-badge">Section ${escapeHtml(course.section)}</span>`
-      : `<span class="tile-section-badge tile-section-badge-muted">Core</span>`;
-    const typeBadge = course.iselective
-      ? '<span class="tile-type-badge">Elective</span>'
-      : `<span class="tile-type-badge">Trimester ${escapeHtml(course.trimester || currentTrimester)}</span>`;
-    const topicMarkup = course.topic
-      ? `<div class="tile-topic">${escapeHtml(course.topic)}</div>`
-      : '';
-
-    tile.innerHTML = `
-      <div class="tile-header">
-        <div class="tile-tags">
-          ${sectionBadge}
-          ${typeBadge}
-        </div>
-        <div class="tile-status ${course.status || 'active'}"></div>
-      </div>
-      <h3 class="tile-name">${escapeHtml(course.name)}</h3>
-      <div class="tile-info">
-        <div class="tile-row">
-          <span class="tile-label">Prof</span>
-          <span class="tile-value">${escapeHtml(course.professor || 'TBA')}</span>
-        </div>
-        <div class="tile-row">
-          <span class="tile-label">Room</span>
-          <span class="tile-value tile-classroom">${escapeHtml(todayRoom)}</span>
-        </div>
-        <div class="tile-row">
-          <span class="tile-label">Session</span>
-          <span class="tile-value tile-session">${course.currentsession || 0} / ${course.totalsessions || 30}</span>
-        </div>
-        ${topicMarkup}
-      </div>
-    `;
+  Object.entries(groupedCourses).forEach(([courseName, sections]) => {
+    const baseCourse = sections[0];
+    const card = document.createElement('div');
+    card.className = 'course-card';
     
-    tile.addEventListener('click', () => openEditModal(course));
-    courseGrid.appendChild(tile);
+    // Sort sections: Core first, then A, B, C etc.
+    sections.sort((a, b) => {
+      if (!a.section && b.section) return -1;
+      if (a.section && !b.section) return 1;
+      return (a.section || '').localeCompare(b.section || '');
+    });
+
+    const typeBadge = baseCourse.iselective
+      ? '<span class="course-badge">Elective</span>'
+      : `<span class="course-badge">Trimester ${escapeHtml(baseCourse.trimester || currentTrimester)}</span>`;
+
+    let cardHtml = `
+      <div class="course-card-header">
+        <h3 class="course-card-title">${escapeHtml(courseName)}</h3>
+        ${typeBadge}
+      </div>
+      <div class="course-sections">
+    `;
+
+    sections.forEach(course => {
+      const sectionTone = getSectionTone(course.section);
+      let todayRoom = getTodayRoom(course);
+      
+      const sessionPct = Math.min(100, Math.max(0, ((course.currentsession || 0) / (course.totalsessions || 30)) * 100));
+      
+      const sectionBadge = course.section 
+        ? `<span class="section-badge" style="color: ${sectionTone.accent}; background: ${sectionTone.soft}; border-color: ${sectionTone.glow}">Section ${escapeHtml(course.section)}</span>`
+        : `<span class="section-badge muted">Core</span>`;
+
+      cardHtml += `
+        <div class="course-section-row" data-id="${course.id}">
+          <div class="section-header">
+            ${sectionBadge}
+            <div class="section-meta">
+              <span class="section-prof">${escapeHtml(course.professor || 'TBA')}</span>
+              <span class="meta-dot">•</span>
+              <span class="section-room">${escapeHtml(todayRoom)}</span>
+            </div>
+          </div>
+          ${course.topic ? `<div class="section-topic-large">${escapeHtml(course.topic)}</div>` : `<div class="section-topic-large empty">No topic assigned</div>`}
+          <div class="section-progress-large">
+            <div class="progress-stats">
+              <span class="progress-label">Session Progress</span>
+              <span class="progress-numbers" style="color: ${sectionTone.accent}">${course.currentsession || 0} <span class="progress-total">/ ${course.totalsessions || 30}</span></span>
+            </div>
+            <div class="progress-bar-wrap">
+              <div class="progress-bar-fill" style="width: ${sessionPct}%; background: ${sectionTone.accent}; box-shadow: 0 0 8px ${sectionTone.glow}"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    cardHtml += `</div>`;
+    card.innerHTML = cardHtml;
+    
+    const rows = card.querySelectorAll('.course-section-row');
+    rows.forEach(row => {
+      row.addEventListener('click', () => {
+        const c = sections.find(s => s.id === row.dataset.id);
+        if (c) openEditModal(c);
+      });
+    });
+
+    // Stagger animation
+    card.style.animationDelay = `${Math.random() * 0.2}s`;
+    courseGrid.appendChild(card);
   });
 }
 

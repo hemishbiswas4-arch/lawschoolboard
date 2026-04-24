@@ -1,11 +1,20 @@
 import { supabase } from './supabase.js';
 
+function getAuthRedirectUrl() {
+  const configuredUrl = import.meta.env.VITE_APP_URL?.trim();
+  if (configuredUrl) {
+    return configuredUrl.replace(/\/+$/, '');
+  }
+
+  return window.location.origin;
+}
+
 export async function signInWithGoogle() {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
       queryParams: { hd: 'nls.ac.in' },
-      redirectTo: window.location.origin
+      redirectTo: getAuthRedirectUrl()
     }
   });
   if (error) throw error;

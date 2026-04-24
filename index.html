@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="NLS Course Display Board — View course schedules, classrooms, and session progress for National Law School of India University.">
+  <title>NLS Display Board</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+
+  <!-- ========== LOGIN SCREEN ========== -->
+  <div id="login-screen" class="screen active">
+    <div class="login-container">
+      <div class="login-brand">
+        <div class="brand-mark">NLS</div>
+        <h1>Display Board</h1>
+        <p class="brand-sub">National Law School of India University</p>
+      </div>
+      <button id="google-signin-btn" class="signin-btn" type="button">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615Z" fill="#4285F4"/>
+          <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.26c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18Z" fill="#34A853"/>
+          <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.997 8.997 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332Z" fill="#FBBC05"/>
+          <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58Z" fill="#EA4335"/>
+        </svg>
+        <span>Sign in with Google</span>
+      </button>
+      <p class="login-note">@nls.ac.in accounts only</p>
+    </div>
+  </div>
+
+  <!-- ========== MAIN BOARD ========== -->
+  <div id="board-screen" class="screen">
+    
+    <!-- Header -->
+    <header id="board-header">
+      <div class="header-left">
+        <span class="header-brand">NLS</span>
+        <span class="header-title">Display Board</span>
+      </div>
+      <div class="header-right">
+        <span id="user-email" class="user-email"></span>
+        <button id="admin-toggle-btn" class="header-btn hidden" title="Admin Panel">⚙</button>
+        <button id="signout-btn" class="header-btn" title="Sign Out">↗</button>
+      </div>
+    </header>
+
+    <!-- Navigation: Year Tabs -->
+    <nav id="year-nav">
+      <button class="year-tab active" data-year="1">Year 1</button>
+      <button class="year-tab" data-year="2">Year 2</button>
+      <button class="year-tab" data-year="3">Year 3</button>
+      <button class="year-tab" data-year="4">Year 4</button>
+      <button class="year-tab" data-year="5">Year 5</button>
+      <button class="year-tab" data-year="electives">Electives</button>
+    </nav>
+
+    <!-- Trimester Selector (hidden for electives) -->
+    <div id="trimester-nav">
+      <button class="tri-tab active" data-trimester="1">Trimester I</button>
+      <button class="tri-tab" data-trimester="2">Trimester II</button>
+      <button class="tri-tab" data-trimester="3">Trimester III</button>
+    </div>
+
+    <!-- Course Grid -->
+    <main id="course-grid">
+      <!-- Course tiles rendered here by JS -->
+      <div id="empty-state" class="empty-state hidden">
+        <p>No courses found for this selection.</p>
+      </div>
+    </main>
+
+    <!-- Loading -->
+    <div id="board-loading" class="loading hidden">
+      <div class="loading-dot"></div>
+    </div>
+
+  </div>
+
+  <!-- ========== COURSE EDIT MODAL ========== -->
+  <div id="edit-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modal-title">Edit Course</h2>
+        <button id="modal-close" class="modal-close">×</button>
+      </div>
+      <form id="edit-form">
+        <input type="hidden" id="edit-course-id">
+        
+        <div class="form-group">
+          <label for="edit-name">Course Name</label>
+          <input type="text" id="edit-name" required>
+        </div>
+
+        <div class="form-group">
+          <label for="edit-section">Section</label>
+          <input type="text" id="edit-section" placeholder="e.g. A, B, C">
+        </div>
+
+        <div class="form-group">
+          <label for="edit-professor">Professor</label>
+          <input type="text" id="edit-professor" required>
+        </div>
+
+
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="edit-current-session">Current Session</label>
+            <input type="number" id="edit-current-session" min="0" required>
+          </div>
+          <div class="form-group">
+            <label for="edit-total-sessions">Total Sessions</label>
+            <input type="number" id="edit-total-sessions" min="1" value="30" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="edit-topic">Current Topic / Module</label>
+          <input type="text" id="edit-topic" placeholder="e.g. Fundamental Rights">
+        </div>
+
+        <div class="form-group">
+          <label>Day-by-Day Rooms & Times</label>
+          <div class="schedule-grid">
+            <input type="text" id="edit-sched-1" placeholder="Monday Room/Time">
+            <input type="text" id="edit-sched-2" placeholder="Tuesday Room/Time">
+            <input type="text" id="edit-sched-3" placeholder="Wednesday Room/Time">
+            <input type="text" id="edit-sched-4" placeholder="Thursday Room/Time">
+            <input type="text" id="edit-sched-5" placeholder="Friday Room/Time">
+            <input type="text" id="edit-sched-6" placeholder="Saturday Room/Time">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="edit-outline">Course Outline</label>
+          <textarea id="edit-outline" rows="4" placeholder="Brief course outline or current topic..."></textarea>
+        </div>
+
+        <div class="form-row" id="admin-only-fields" style="display:none;">
+          <div class="form-group">
+            <label for="edit-year">Year</label>
+            <select id="edit-year">
+              <option value="1">Year 1</option>
+              <option value="2">Year 2</option>
+              <option value="3">Year 3</option>
+              <option value="4">Year 4</option>
+              <option value="5">Year 5</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="edit-trimester">Trimester</label>
+            <select id="edit-trimester">
+              <option value="1">Trimester I</option>
+              <option value="2">Trimester II</option>
+              <option value="3">Trimester III</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="edit-elective">
+              <input type="checkbox" id="edit-elective"> Elective
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group" id="edit-status-group" style="display:none;">
+          <label for="edit-status">Status</label>
+          <select id="edit-status">
+            <option value="active">Active</option>
+            <option value="upcoming">Upcoming</option>
+            <option value="completed">Completed</option>
+          </select>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" id="edit-cancel" class="btn-secondary">Cancel</button>
+          <button type="submit" class="btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========== ADMIN PANEL MODAL ========== -->
+  <div id="admin-modal" class="modal hidden admin-layout-modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content admin-modal-content">
+      
+      <!-- Admin Sidebar / Tabs -->
+      <aside class="admin-sidebar">
+        <div class="admin-sidebar-header">
+          <h2>Admin Panel</h2>
+          <button id="admin-modal-close" class="modal-close mobile-only">×</button>
+        </div>
+        <nav class="admin-nav" id="admin-nav">
+          <!-- Password tab is only visible when not authenticated as admin -->
+          <button class="admin-tab active" data-target="section-password" id="tab-password">Authenticate</button>
+          
+          <button class="admin-tab restricted-tab" data-target="section-add-course" id="tab-add-course">Add Course</button>
+          <button class="admin-tab restricted-tab" data-target="section-manage-admins" id="tab-manage-admins">Manage Admins</button>
+          <button class="admin-tab restricted-tab" data-target="section-delete-course" id="tab-delete-course">Delete Course</button>
+        </nav>
+      </aside>
+
+      <!-- Admin Content Area -->
+      <div class="admin-main">
+        <div class="admin-main-header desktop-only">
+          <button id="admin-modal-close-desktop" class="modal-close">×</button>
+        </div>
+        <div class="admin-sections">
+          
+          <!-- Admin Password (Always visible first if not admin) -->
+          <div class="admin-section active" id="section-password">
+            <h3>Become Admin</h3>
+            <p class="section-note">Enter the admin password to gain admin access.</p>
+            <form id="admin-password-form" class="inline-form">
+              <input type="password" id="admin-password-input" placeholder="Admin password" required>
+              <button type="submit" class="btn-primary">Verify</button>
+            </form>
+            <p id="admin-password-feedback" class="feedback"></p>
+          </div>
+
+          <!-- Add Course -->
+          <div class="admin-section restricted-section" id="section-add-course">
+          <h3>Add New Course</h3>
+          <form id="add-course-form">
+            <div class="form-group">
+              <label for="add-name">Course Name</label>
+              <input type="text" id="add-name" placeholder="Defaults to Untitled Course">
+            </div>
+            <div class="form-group">
+              <label for="add-section">Section</label>
+              <input type="text" id="add-section" placeholder="e.g. A, B">
+            </div>
+            <div class="form-group">
+              <label for="add-professor">Professor</label>
+              <input type="text" id="add-professor" placeholder="Defaults to TBA">
+            </div>
+            <div class="form-group">
+              <label>Day-by-Day Rooms & Times</label>
+              <div class="schedule-grid">
+                <input type="text" id="add-sched-1" placeholder="Monday Room/Time">
+                <input type="text" id="add-sched-2" placeholder="Tuesday Room/Time">
+                <input type="text" id="add-sched-3" placeholder="Wednesday Room/Time">
+                <input type="text" id="add-sched-4" placeholder="Thursday Room/Time">
+                <input type="text" id="add-sched-5" placeholder="Friday Room/Time">
+                <input type="text" id="add-sched-6" placeholder="Saturday Room/Time">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="add-year">Year</label>
+                <select id="add-year">
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="add-trimester">Trimester</label>
+                <select id="add-trimester">
+                  <option value="1">I</option>
+                  <option value="2">II</option>
+                  <option value="3">III</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="add-current-session">Current Session</label>
+                <input type="number" id="add-current-session" value="0" min="0">
+              </div>
+              <div class="form-group">
+                <label for="add-total-sessions">Total Sessions</label>
+                <input type="number" id="add-total-sessions" value="30" min="1">
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="add-topic">Current Topic / Module</label>
+              <input type="text" id="add-topic" placeholder="e.g. Fundamental Rights">
+            </div>
+            <div class="form-group">
+              <label for="add-elective-check">
+                <input type="checkbox" id="add-elective-check"> Elective
+              </label>
+            </div>
+            <button type="submit" class="btn-primary">Add Course</button>
+            <p id="add-course-feedback" class="feedback"></p>
+          </form>
+        </div>
+
+        <!-- Manage Admins -->
+        <div class="admin-section restricted-section" id="section-manage-admins">
+          <h3>Manage Admins</h3>
+          <div id="admin-list"></div>
+          <form id="add-admin-form" class="inline-form">
+            <input type="email" id="add-admin-email" placeholder="email@nls.ac.in" required>
+            <button type="submit" class="btn-primary">Grant Admin</button>
+          </form>
+        </div>
+
+        <!-- Delete Course -->
+        <div class="admin-section restricted-section" id="section-delete-course">
+          <h3>Delete Course</h3>
+          <div id="delete-course-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notifications -->
+  <div id="toast-container"></div>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

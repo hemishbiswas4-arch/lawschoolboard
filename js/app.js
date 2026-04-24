@@ -46,6 +46,14 @@ let currentYear = DEFAULT_YEAR;
 let currentTrimester = DEFAULT_TRIMESTER;
 let currentCourses = [];
 let subscription = null;
+const SECTION_TONES = [
+  { accent: '#d4a843', soft: 'rgba(212, 168, 67, 0.14)', glow: 'rgba(212, 168, 67, 0.32)' },
+  { accent: '#6ea8fe', soft: 'rgba(110, 168, 254, 0.14)', glow: 'rgba(110, 168, 254, 0.32)' },
+  { accent: '#3ddc84', soft: 'rgba(61, 220, 132, 0.14)', glow: 'rgba(61, 220, 132, 0.32)' },
+  { accent: '#fb923c', soft: 'rgba(251, 146, 60, 0.14)', glow: 'rgba(251, 146, 60, 0.32)' },
+  { accent: '#f87171', soft: 'rgba(248, 113, 113, 0.14)', glow: 'rgba(248, 113, 113, 0.32)' },
+  { accent: '#8bd3dd', soft: 'rgba(139, 211, 221, 0.14)', glow: 'rgba(139, 211, 221, 0.32)' }
+];
 
 function withTimeout(promise, ms, message) {
   return Promise.race([
@@ -73,6 +81,29 @@ function readScheduleMap(value) {
   }
 
   return {};
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function getSectionTone(section) {
+  if (!section) {
+    return SECTION_TONES[0];
+  }
+
+  const normalizedSection = String(section).trim().toUpperCase();
+  let hash = 0;
+  for (const char of normalizedSection) {
+    hash = ((hash * 31) + char.charCodeAt(0)) % SECTION_TONES.length;
+  }
+
+  return SECTION_TONES[hash];
 }
 
 function normalizeYear(value) {
@@ -220,6 +251,10 @@ function renderCourses() {
     const tile = document.createElement('div');
     tile.className = 'course-tile';
     tile.dataset.id = course.id;
+    const sectionTone = getSectionTone(course.section);
+    tile.style.setProperty('--tile-accent', sectionTone.accent);
+    tile.style.setProperty('--tile-accent-soft', sectionTone.soft);
+    tile.style.setProperty('--tile-accent-glow', sectionTone.glow);
     
     let todayRoom = 'No class today';
     try {
@@ -249,25 +284,39 @@ function renderCourses() {
       todayRoom = course.weeklyschedule || 'TBA';
     }
 
+    const sectionBadge = course.section
+      ? `<span class="tile-section-badge">Section ${escapeHtml(course.section)}</span>`
+      : `<span class="tile-section-badge tile-section-badge-muted">Core</span>`;
+    const typeBadge = course.iselective
+      ? '<span class="tile-type-badge">Elective</span>'
+      : `<span class="tile-type-badge">Trimester ${escapeHtml(course.trimester || currentTrimester)}</span>`;
+    const topicMarkup = course.topic
+      ? `<div class="tile-topic">${escapeHtml(course.topic)}</div>`
+      : '';
+
     tile.innerHTML = `
-      <div class="tile-header" style="justify-content: flex-end;">
+      <div class="tile-header">
+        <div class="tile-tags">
+          ${sectionBadge}
+          ${typeBadge}
+        </div>
         <div class="tile-status ${course.status || 'active'}"></div>
       </div>
-      <h3 class="tile-name">${course.name}${course.section ? ` <span class="tile-section">(Sec ${course.section})</span>` : ''}</h3>
+      <h3 class="tile-name">${escapeHtml(course.name)}</h3>
       <div class="tile-info">
         <div class="tile-row">
           <span class="tile-label">Prof</span>
-          <span class="tile-value">${course.professor || 'TBA'}</span>
+          <span class="tile-value">${escapeHtml(course.professor || 'TBA')}</span>
         </div>
         <div class="tile-row">
           <span class="tile-label">Room</span>
-          <span class="tile-value tile-classroom">${todayRoom}</span>
+          <span class="tile-value tile-classroom">${escapeHtml(todayRoom)}</span>
         </div>
         <div class="tile-row">
           <span class="tile-label">Session</span>
           <span class="tile-value tile-session">${course.currentsession || 0} / ${course.totalsessions || 30}</span>
         </div>
-        ${course.topic ? `<div class="tile-topic">${course.topic}</div>` : ''}
+        ${topicMarkup}
       </div>
     `;
     

@@ -42,6 +42,15 @@ let currentTrimester = '1';
 let currentCourses = [];
 let subscription = null;
 
+function withTimeout(promise, ms, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(message)), ms);
+    })
+  ]);
+}
+
 function readScheduleMap(value) {
   if (!value) return {};
 
@@ -344,7 +353,7 @@ async function handleEditSubmit(e) {
     totalsessions: Number.isFinite(totalSessionsInput) && totalSessionsInput > 0 ? totalSessionsInput : 30,
     topic: topic || null,
     outline: outline || null,
-    weeklyschedule: Object.keys(sched).length ? sched : null,
+    weeklyschedule: Object.keys(sched).length ? JSON.stringify(sched) : null,
     updatedby: currentUser.email
   };
   
@@ -456,19 +465,23 @@ async function handleAddCourse(e) {
     topic: topic || null,
     iselective: isElective,
     status: 'active',
-    weeklyschedule: Object.keys(sched).length ? sched : null,
+    weeklyschedule: Object.keys(sched).length ? JSON.stringify(sched) : null,
     updatedby: currentUser.email
   };
   
   try {
-    await createCourse(courseData);
+    await withTimeout(
+      createCourse(courseData),
+      12000,
+      'Saving the course timed out. Please try again.'
+    );
     showToast('Course added');
     addCourseFeedback.textContent = `Added "${courseData.name}".`;
     addCourseFeedback.className = 'feedback success';
     addCourseForm.reset();
     document.getElementById('add-total-sessions').value = 30;
     document.getElementById('add-current-session').value = 0;
-    await loadData();
+    loadData();
     if (!adminModal.classList.contains('hidden')) openAdminPanel(); // refresh lists
   } catch (error) {
     console.error('Add course failed:', error);

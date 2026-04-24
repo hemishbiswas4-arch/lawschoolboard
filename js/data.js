@@ -123,12 +123,11 @@ export async function createCourse(courseData) {
   const data = await runCourseWrite(
     payload => supabase
       .from('courses')
-      .insert([payload])
-      .select(),
+      .insert([payload]),
     { ...courseData, lastupdated: new Date().toISOString() }
   );
 
-  return data[0];
+  return Array.isArray(data) ? data[0] : null;
 }
 
 /**

@@ -81,6 +81,43 @@
 
   </div>
 
+  <!-- ========== FIRST-LOGIN PREFERENCES MODAL ========== -->
+  <div id="onboarding-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content onboarding-content">
+      <div class="modal-header">
+        <h2>Set Your Default Board</h2>
+      </div>
+      <form id="onboarding-form">
+        <p class="onboarding-note">Choose your year and trimester once. We’ll open this board automatically whenever you sign back in.</p>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="onboarding-year">Year</label>
+            <select id="onboarding-year" required>
+              <option value="1">Year 1</option>
+              <option value="2">Year 2</option>
+              <option value="3">Year 3</option>
+              <option value="4">Year 4</option>
+              <option value="5">Year 5</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="onboarding-trimester">Trimester</label>
+            <select id="onboarding-trimester" required>
+              <option value="1">Trimester I</option>
+              <option value="2">Trimester II</option>
+              <option value="3">Trimester III</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">Save Preference</button>
+        </div>
+        <p id="onboarding-feedback" class="feedback"></p>
+      </form>
+    </div>
+  </div>
+
   <!-- ========== COURSE EDIT MODAL ========== -->
   <div id="edit-modal" class="modal hidden">
     <div class="modal-backdrop"></div>

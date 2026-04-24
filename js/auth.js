@@ -1,5 +1,8 @@
 import { supabase } from './supabase.js';
 
+const VALID_PREFERENCE_YEARS = ['1', '2', '3', '4', '5'];
+const VALID_PREFERENCE_TRIMESTERS = ['1', '2', '3'];
+
 function getAuthRedirectUrl() {
   const configuredUrl = import.meta.env.VITE_APP_URL?.trim();
   if (configuredUrl) {
@@ -42,6 +45,40 @@ export async function signOut() {
 export async function getSession() {
   const { data: { session } } = await supabase.auth.getSession();
   return session;
+}
+
+export function getBoardPreference(user) {
+  const year = user?.user_metadata?.preferred_year ? String(user.user_metadata.preferred_year) : null;
+  const trimester = user?.user_metadata?.preferred_trimester ? String(user.user_metadata.preferred_trimester) : null;
+
+  if (!VALID_PREFERENCE_YEARS.includes(year) || !VALID_PREFERENCE_TRIMESTERS.includes(trimester)) {
+    return null;
+  }
+
+  return { year, trimester };
+}
+
+export async function saveBoardPreference(year, trimester) {
+  const normalizedYear = String(year);
+  const normalizedTrimester = String(trimester);
+
+  if (!VALID_PREFERENCE_YEARS.includes(normalizedYear) || !VALID_PREFERENCE_TRIMESTERS.includes(normalizedTrimester)) {
+    throw new Error('Please choose a valid year and trimester.');
+  }
+
+  const { data: { user } } = await supabase.auth.getUser();
+  const existingMetadata = user?.user_metadata || {};
+
+  const { data, error } = await supabase.auth.updateUser({
+    data: {
+      ...existingMetadata,
+      preferred_year: normalizedYear,
+      preferred_trimester: normalizedTrimester
+    }
+  });
+
+  if (error) throw error;
+  return data.user;
 }
 
 export function getUserEmail(session) {

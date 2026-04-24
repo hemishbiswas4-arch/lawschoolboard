@@ -1,4 +1,4 @@
-import { signInWithGoogle, signOut, onAuthStateChange, isNLSEmail, checkIsAdmin, getUserEmail } from './auth.js';
+import { signInWithGoogle, signOut, onAuthStateChange, isNLSEmail, checkIsAdmin, getUserEmail, getBoardPreference, saveBoardPreference } from './auth.js';
 import { fetchCourses, subscribeToCourses, updateCourse, createCourse, deleteCourse } from './data.js';
 import { addAdmin, fetchAdmins, verifyAdminPassword } from './admin.js';
 import { supabase } from './supabase.js';
@@ -10,6 +10,9 @@ const googleBtn = document.getElementById('google-signin-btn');
 const signoutBtn = document.getElementById('signout-btn');
 const userEmailEl = document.getElementById('user-email');
 const adminToggleBtn = document.getElementById('admin-toggle-btn');
+const onboardingModal = document.getElementById('onboarding-modal');
+const onboardingForm = document.getElementById('onboarding-form');
+const onboardingFeedback = document.getElementById('onboarding-feedback');
 
 const yearTabs = document.querySelectorAll('.year-tab');
 const triTabs = document.querySelectorAll('.tri-tab');
@@ -35,10 +38,12 @@ const adminList = document.getElementById('admin-list');
 const deleteCourseList = document.getElementById('delete-course-list');
 
 // State
+const DEFAULT_YEAR = '1';
+const DEFAULT_TRIMESTER = '1';
 let currentUser = null;
 let isAdmin = false;
-let currentYear = '1';
-let currentTrimester = '1';
+let currentYear = DEFAULT_YEAR;
+let currentTrimester = DEFAULT_TRIMESTER;
 let currentCourses = [];
 let subscription = null;
 
@@ -70,12 +75,59 @@ function readScheduleMap(value) {
   return {};
 }
 
+function normalizeYear(value) {
+  return ['1', '2', '3', '4', '5', 'electives'].includes(String(value)) ? String(value) : DEFAULT_YEAR;
+}
+
+function normalizeTrimester(value) {
+  return ['1', '2', '3'].includes(String(value)) ? String(value) : DEFAULT_TRIMESTER;
+}
+
+function syncBoardSelectionUi() {
+  yearTabs.forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.year === currentYear);
+  });
+
+  triTabs.forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.trimester === currentTrimester);
+  });
+
+  if (currentYear === 'electives') {
+    trimesterNav.classList.add('hidden');
+  } else {
+    trimesterNav.classList.remove('hidden');
+  }
+}
+
+function setBoardSelection(year, trimester, { load = true } = {}) {
+  currentYear = normalizeYear(year);
+  currentTrimester = normalizeTrimester(trimester);
+  syncBoardSelectionUi();
+
+  if (load) {
+    loadData();
+  }
+}
+
+function openOnboardingModal(preference = null) {
+  document.getElementById('onboarding-year').value = preference?.year || currentYear || DEFAULT_YEAR;
+  document.getElementById('onboarding-trimester').value = preference?.trimester || currentTrimester || DEFAULT_TRIMESTER;
+  onboardingFeedback.textContent = '';
+  onboardingFeedback.className = 'feedback';
+  onboardingModal.classList.remove('hidden');
+}
+
+function closeOnboardingModal() {
+  onboardingModal.classList.add('hidden');
+}
+
 // Initialization
 function init() {
   onAuthStateChange(async (event, session) => {
     if (session) {
       currentUser = session.user;
       const email = getUserEmail(session);
+      const boardPreference = getBoardPreference(session.user);
       
       if (!isNLSEmail(email)) {
         showToast('Only @nls.ac.in accounts are allowed.', 'error');
@@ -85,11 +137,17 @@ function init() {
       
       userEmailEl.textContent = email;
       isAdmin = await checkIsAdmin(email);
+      setBoardSelection(boardPreference?.year || DEFAULT_YEAR, boardPreference?.trimester || DEFAULT_TRIMESTER, { load: false });
       // Admin toggle is always visible so users can enter the password to become admin
       adminToggleBtn.classList.remove('hidden');
       
       showBoard();
       loadData();
+      if (boardPreference) {
+        closeOnboardingModal();
+      } else {
+        openOnboardingModal();
+      }
       
       // Setup realtime listener
       if (subscription) subscription.unsubscribe();
@@ -97,6 +155,7 @@ function init() {
     } else {
       currentUser = null;
       isAdmin = false;
+      closeOnboardingModal();
       if (subscription) {
         subscription.unsubscribe();
         subscription = null;
@@ -235,25 +294,13 @@ function setupEventListeners() {
   // Navigation
   yearTabs.forEach(tab => {
     tab.addEventListener('click', (e) => {
-      yearTabs.forEach(t => t.classList.remove('active'));
-      e.target.classList.add('active');
-      currentYear = e.target.dataset.year;
-      
-      if (currentYear === 'electives') {
-        trimesterNav.classList.add('hidden');
-      } else {
-        trimesterNav.classList.remove('hidden');
-      }
-      loadData();
+      setBoardSelection(e.target.dataset.year, currentTrimester);
     });
   });
   
   triTabs.forEach(tab => {
     tab.addEventListener('click', (e) => {
-      triTabs.forEach(t => t.classList.remove('active'));
-      e.target.classList.add('active');
-      currentTrimester = e.target.dataset.trimester;
-      loadData();
+      setBoardSelection(currentYear, e.target.dataset.trimester);
     });
   });
   
@@ -268,6 +315,7 @@ function setupEventListeners() {
   addCourseForm.addEventListener('submit', handleAddCourse);
   addAdminForm.addEventListener('submit', handleAddAdmin);
   adminPasswordForm.addEventListener('submit', handleAdminPassword);
+  onboardingForm.addEventListener('submit', handleOnboardingSubmit);
   
   // Dynamic total sessions for electives
   document.getElementById('add-elective-check').addEventListener('change', (e) => {
@@ -504,6 +552,33 @@ async function handleAddAdmin(e) {
     openAdminPanel(); // refresh list
   } catch (error) {
     showToast(error.message, 'error');
+  }
+}
+
+async function handleOnboardingSubmit(e) {
+  e.preventDefault();
+  const submitButton = onboardingForm.querySelector('button[type="submit"]');
+  const originalLabel = submitButton.textContent;
+  const year = document.getElementById('onboarding-year').value;
+  const trimester = document.getElementById('onboarding-trimester').value;
+
+  onboardingFeedback.textContent = '';
+  onboardingFeedback.className = 'feedback';
+  submitButton.disabled = true;
+  submitButton.textContent = 'Saving...';
+
+  try {
+    const updatedUser = await saveBoardPreference(year, trimester);
+    currentUser = updatedUser || currentUser;
+    setBoardSelection(year, trimester);
+    closeOnboardingModal();
+    showToast('Default board saved');
+  } catch (error) {
+    onboardingFeedback.textContent = error.message || 'Unable to save your board preference.';
+    onboardingFeedback.className = 'feedback error';
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = originalLabel;
   }
 }
 

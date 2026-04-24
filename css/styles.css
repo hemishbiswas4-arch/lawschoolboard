@@ -461,6 +461,17 @@ body {
   scrollbar-color: var(--border) transparent;
 }
 
+.onboarding-content {
+  max-width: 420px;
+}
+
+.onboarding-note {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  line-height: 1.6;
+  margin-bottom: 1.25rem;
+}
+
 /* Admin Sidebar Layout */
 .admin-modal-content {
   max-width: 900px;

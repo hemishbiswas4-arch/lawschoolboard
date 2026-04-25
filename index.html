@@ -3,32 +3,38 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="NLS Course Display Board — View course schedules, classrooms, and session progress for National Law School of India University.">
+  <meta name="description" content="Law School Board — view live courses, current sessions, and current topics for National Law School of India University.">
   <meta name="theme-color" content="#0a0a0a">
   <title>Law School Board</title>
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Material+Symbols+Outlined:FILL@0..1&display=swap" rel="stylesheet">
+  <script type="importmap">
+    {
+      "imports": {
+        "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.49.0"
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="./css/styles.css">
 </head>
 <body>
-
-  <!-- ========== INIT LOADING SCREEN ========== -->
   <div id="init-screen" class="screen active init-loading">
     <div class="loading-dot"></div>
   </div>
 
-  <!-- ========== LOGIN SCREEN ========== -->
   <div id="login-screen" class="screen">
     <div class="login-container">
       <div class="login-brand">
-        <div class="brand-mark">NLS</div>
-        <h1>Display Board</h1>
+        <div class="login-brand-emblem" aria-hidden="true">
+          <img src="/favicon.svg" alt="" class="login-brand-crest">
+        </div>
+        <h1>Law School Board</h1>
         <p class="brand-sub">National Law School of India University</p>
       </div>
       <button id="google-signin-btn" class="signin-btn" type="button">
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
           <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615Z" fill="#4285F4"/>
           <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.26c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18Z" fill="#34A853"/>
           <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.997 8.997 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332Z" fill="#FBBC05"/>
@@ -40,67 +46,115 @@
     </div>
   </div>
 
-  <!-- ========== MAIN BOARD ========== -->
   <div id="board-screen" class="screen">
-    
-    <!-- Header -->
     <header id="board-header">
-      <div class="header-left">
-        <span class="header-brand">NLS</span>
-        <span class="header-title">Display Board</span>
+      <div class="board-brand-lockup">
+        <div class="board-brand-mark">
+          <img src="/favicon.svg" alt="Law School Board crest" class="board-crest">
+        </div>
+        <div class="header-left">
+          <span class="header-brand">Law School Board</span>
+          <span class="header-title">National Law School of India University</span>
+        </div>
       </div>
       <div class="header-right">
-        <span id="user-email" class="user-email"></span>
-        <button id="board-preference-btn" class="header-btn preference-btn" type="button" title="Default Board">Default</button>
-        <button id="admin-toggle-btn" class="header-btn hidden" title="Admin Panel">⚙</button>
-        <button id="signout-btn" class="header-btn" title="Sign Out">↗</button>
+        <button id="admin-toggle-btn" class="header-btn icon-btn hidden" type="button" title="Admin Panel">
+          <span class="material-symbols-outlined" aria-hidden="true">shield_person</span>
+        </button>
+        <button id="signout-btn" class="header-btn icon-btn" type="button" title="Sign Out">
+          <span class="material-symbols-outlined" aria-hidden="true">logout</span>
+        </button>
       </div>
     </header>
 
-    <!-- Navigation: Year Tabs -->
-    <nav id="year-nav">
-      <button class="year-tab active" data-year="1">Year 1</button>
-      <button class="year-tab" data-year="2">Year 2</button>
-      <button class="year-tab" data-year="3">Year 3</button>
-      <button class="year-tab" data-year="4">Year 4</button>
-      <button class="year-tab" data-year="5">Year 5</button>
-      <button class="year-tab" data-year="electives">Electives</button>
-    </nav>
+    <div class="board-shell">
+      <aside class="board-sidebar">
+        <div class="board-sidebar-section">
+          <p class="board-sidebar-label">Years</p>
+          <nav id="year-nav">
+            <button class="year-tab active" data-year="1">
+              <span>Year 1</span>
+            </button>
+            <button class="year-tab" data-year="2">
+              <span>Year 2</span>
+            </button>
+            <button class="year-tab" data-year="3">
+              <span>Year 3</span>
+            </button>
+            <button class="year-tab" data-year="4">
+              <span>Year 4</span>
+            </button>
+            <button class="year-tab" data-year="5">
+              <span>Year 5</span>
+            </button>
+            <button class="year-tab" data-year="electives">
+              <span>Electives</span>
+            </button>
+          </nav>
+        </div>
 
-    <!-- Trimester Selector (hidden for electives) -->
-    <div id="trimester-nav">
-      <button class="tri-tab active" data-trimester="1">Trimester I</button>
-      <button class="tri-tab" data-trimester="2">Trimester II</button>
-      <button class="tri-tab" data-trimester="3">Trimester III</button>
+        <div class="board-sidebar-section">
+          <p class="board-sidebar-label">Trimesters</p>
+          <div id="trimester-nav">
+            <button class="tri-tab active" data-trimester="1">
+              <span>Trimester I</span>
+            </button>
+            <button class="tri-tab" data-trimester="2">
+              <span>Trimester II</span>
+            </button>
+            <button class="tri-tab" data-trimester="3">
+              <span>Trimester III</span>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <section class="board-main">
+        <div class="board-main-header">
+          <div class="board-title-block">
+            <h1 id="board-title" class="board-title">Year 1 / Trimester I</h1>
+            <span id="board-updated-at" class="board-updated-at">Updated just now</span>
+          </div>
+
+          <div class="board-toolbar">
+            <label class="board-search" for="board-search-input">
+              <span class="material-symbols-outlined" aria-hidden="true">search</span>
+              <input id="board-search-input" type="text" inputmode="search" autocomplete="off" placeholder="Search course, section, or topic">
+              <button id="board-search-clear" class="board-search-clear hidden" type="button" aria-label="Clear search">
+                <span class="material-symbols-outlined" aria-hidden="true">close</span>
+              </button>
+            </label>
+          </div>
+        </div>
+
+        <main id="course-grid">
+          <div id="empty-state" class="empty-state hidden">
+            <p>No courses found for this selection.</p>
+          </div>
+        </main>
+      </section>
     </div>
 
-    <!-- Course Grid -->
-    <main id="course-grid">
-      <!-- Course tiles rendered here by JS -->
-      <div id="empty-state" class="empty-state hidden">
-        <p>No courses found for this selection.</p>
+    <div id="board-loading" class="loading hidden" aria-live="polite">
+      <div class="loading-shell">
+        <div class="loading-dot"></div>
+        <span class="loading-text">Refreshing board</span>
       </div>
-    </main>
-
-    <!-- Loading -->
-    <div id="board-loading" class="loading hidden">
-      <div class="loading-dot"></div>
     </div>
-
   </div>
 
-  <!-- ========== FIRST-LOGIN PREFERENCES MODAL ========== -->
   <div id="onboarding-modal" class="modal hidden">
     <div class="modal-backdrop"></div>
     <div class="modal-content onboarding-content">
       <div class="modal-header onboarding-header">
         <div>
-          <p class="onboarding-eyebrow">Quick Setup</p>
-          <h2>Pick Your Home Board</h2>
+          <p class="onboarding-eyebrow">Board Setup</p>
+          <h2>Choose Your Default Board</h2>
         </div>
+        <button id="onboarding-close" class="modal-close" type="button">×</button>
       </div>
       <form id="onboarding-form" class="onboarding-form">
-        <p class="onboarding-note">Choose the board you want to land on after signing in. We'll save it to your account so future visits open there automatically.</p>
+        <p class="onboarding-note">Set the year, trimester, or electives board you want to land on after signing in. This keeps the board focused and minimal while still saving your default selection.</p>
 
         <div class="preference-group">
           <span class="preference-group-label">Year</span>
@@ -125,10 +179,14 @@
               <input class="preference-input" type="radio" name="preferred-year" value="5">
               <span class="preference-pill-title">Year 5</span>
             </label>
+            <label class="preference-pill">
+              <input class="preference-input" type="radio" name="preferred-year" value="electives">
+              <span class="preference-pill-title">Electives</span>
+            </label>
           </div>
         </div>
 
-        <div class="preference-group">
+        <div id="onboarding-trimester-group" class="preference-group">
           <span class="preference-group-label">Trimester</span>
           <div class="preference-pill-grid preference-pill-grid-trimesters">
             <label class="preference-pill">
@@ -149,24 +207,26 @@
         <p id="onboarding-preview" class="onboarding-preview">You'll open directly to Year 1 / Trimester I.</p>
 
         <div class="form-actions onboarding-actions">
-          <button type="submit" class="btn-primary">Save Default Board</button>
+          <button type="button" id="onboarding-cancel" class="btn-secondary">Cancel</button>
+          <button type="submit" class="btn-primary">Save Board Setup</button>
         </div>
         <p id="onboarding-feedback" class="feedback"></p>
       </form>
     </div>
   </div>
 
-  <!-- ========== COURSE EDIT MODAL ========== -->
   <div id="edit-modal" class="modal hidden">
     <div class="modal-backdrop"></div>
     <div class="modal-content">
       <div class="modal-header">
         <h2 id="modal-title">Edit Course</h2>
-        <button id="modal-close" class="modal-close">×</button>
+        <button id="modal-close" class="modal-close" type="button">×</button>
       </div>
       <form id="edit-form">
         <input type="hidden" id="edit-course-id">
-        
+
+        <p id="edit-mode-note" class="form-mode-note admin">Course updates apply to the live board as soon as they are saved.</p>
+
         <div class="form-group">
           <label for="edit-name">Course Name</label>
           <input type="text" id="edit-name" required>
@@ -176,13 +236,6 @@
           <label for="edit-section">Section</label>
           <input type="text" id="edit-section" placeholder="e.g. A, B, C">
         </div>
-
-        <div class="form-group">
-          <label for="edit-professor">Professor</label>
-          <input type="text" id="edit-professor" required>
-        </div>
-
-
 
         <div class="form-row">
           <div class="form-group">
@@ -200,24 +253,7 @@
           <input type="text" id="edit-topic" placeholder="e.g. Fundamental Rights">
         </div>
 
-        <div class="form-group">
-          <label>Day-by-Day Rooms & Times</label>
-          <div class="schedule-grid">
-            <input type="text" id="edit-sched-1" placeholder="Monday Room/Time">
-            <input type="text" id="edit-sched-2" placeholder="Tuesday Room/Time">
-            <input type="text" id="edit-sched-3" placeholder="Wednesday Room/Time">
-            <input type="text" id="edit-sched-4" placeholder="Thursday Room/Time">
-            <input type="text" id="edit-sched-5" placeholder="Friday Room/Time">
-            <input type="text" id="edit-sched-6" placeholder="Saturday Room/Time">
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="edit-outline">Course Outline</label>
-          <textarea id="edit-outline" rows="4" placeholder="Brief course outline or current topic..."></textarea>
-        </div>
-
-        <div class="form-row" id="admin-only-fields" style="display:none;">
+        <div class="form-row" id="admin-only-fields">
           <div class="form-group">
             <label for="edit-year">Year</label>
             <select id="edit-year">
@@ -236,62 +272,53 @@
               <option value="3">Trimester III</option>
             </select>
           </div>
-          <div class="form-group">
+          <div class="form-group checkbox-group">
             <label for="edit-elective">
               <input type="checkbox" id="edit-elective"> Elective
             </label>
           </div>
         </div>
 
-        <div class="form-group" id="edit-status-group" style="display:none;">
-          <label for="edit-status">Status</label>
-          <select id="edit-status">
-            <option value="active">Active</option>
-            <option value="upcoming">Upcoming</option>
-            <option value="completed">Completed</option>
-          </select>
-        </div>
-
         <div class="form-actions">
           <button type="button" id="edit-cancel" class="btn-secondary">Cancel</button>
-          <button type="submit" class="btn-primary">Save</button>
+          <button type="submit" id="edit-submit-btn" class="btn-primary">Save Changes</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- ========== ADMIN PANEL MODAL ========== -->
   <div id="admin-modal" class="modal hidden admin-layout-modal">
     <div class="modal-backdrop"></div>
     <div class="modal-content admin-modal-content">
-      
-      <!-- Admin Sidebar / Tabs -->
       <aside class="admin-sidebar">
         <div class="admin-sidebar-header">
-          <h2>Admin Panel</h2>
-          <button id="admin-modal-close" class="modal-close mobile-only">×</button>
+          <div>
+            <h2>Admin Panel</h2>
+            <p class="admin-sidebar-note">Course publishing and hierarchy controls</p>
+          </div>
+          <button id="admin-modal-close" class="modal-close mobile-only" type="button">×</button>
         </div>
+
+        <div id="admin-role-summary"></div>
+
         <nav class="admin-nav" id="admin-nav">
-          <!-- Password tab is only visible when not authenticated as admin -->
-          <button class="admin-tab active" data-target="section-password" id="tab-password">Authenticate</button>
-          
-          <button class="admin-tab restricted-tab" data-target="section-add-course" id="tab-add-course">Add Course</button>
-          <button class="admin-tab restricted-tab" data-target="section-manage-admins" id="tab-manage-admins">Manage Admins</button>
-          <button class="admin-tab restricted-tab" data-target="section-delete-course" id="tab-delete-course">Delete Course</button>
+          <button class="admin-tab" data-target="section-password" id="tab-password">Authenticate</button>
+          <button class="admin-tab admin-only-tab hidden" data-target="section-manage-courses" id="tab-manage-courses">Manage Courses</button>
+          <button class="admin-tab admin-only-tab hidden" data-target="section-review-suggestions" id="tab-review-suggestions">Review Suggestions</button>
+          <button class="admin-tab admin-only-tab hidden" data-target="section-add-course" id="tab-add-course">Add Course</button>
+          <button class="admin-tab super-admin-only-tab hidden" data-target="section-manage-admins" id="tab-manage-admins">Manage Admins</button>
         </nav>
       </aside>
 
-      <!-- Admin Content Area -->
       <div class="admin-main">
         <div class="admin-main-header desktop-only">
-          <button id="admin-modal-close-desktop" class="modal-close">×</button>
+          <button id="admin-modal-close-desktop" class="modal-close" type="button">×</button>
         </div>
+
         <div class="admin-sections">
-          
-          <!-- Admin Password (Always visible first if not admin) -->
           <div class="admin-section active" id="section-password">
-            <h3>Become Admin</h3>
-            <p class="section-note">Enter the admin password to gain admin access.</p>
+            <h3>Become Super Admin</h3>
+            <p class="section-note">The system password promotes your account into the top level of the admin hierarchy. Super admins can grant and revoke standard admin access.</p>
             <form id="admin-password-form" class="inline-form">
               <input type="password" id="admin-password-input" placeholder="Admin password" required>
               <button type="submit" class="btn-primary">Verify</button>
@@ -299,98 +326,109 @@
             <p id="admin-password-feedback" class="feedback"></p>
           </div>
 
-          <!-- Add Course -->
-          <div class="admin-section restricted-section" id="section-add-course">
-          <h3>Add New Course</h3>
-          <form id="add-course-form">
-            <div class="form-group">
-              <label for="add-name">Course Name</label>
-              <input type="text" id="add-name" placeholder="Defaults to Untitled Course">
-            </div>
-            <div class="form-group">
-              <label for="add-section">Section</label>
-              <input type="text" id="add-section" placeholder="e.g. A, B">
-            </div>
-            <div class="form-group">
-              <label for="add-professor">Professor</label>
-              <input type="text" id="add-professor" placeholder="Defaults to TBA">
-            </div>
-            <div class="form-group">
-              <label>Day-by-Day Rooms & Times</label>
-              <div class="schedule-grid">
-                <input type="text" id="add-sched-1" placeholder="Monday Room/Time">
-                <input type="text" id="add-sched-2" placeholder="Tuesday Room/Time">
-                <input type="text" id="add-sched-3" placeholder="Wednesday Room/Time">
-                <input type="text" id="add-sched-4" placeholder="Thursday Room/Time">
-                <input type="text" id="add-sched-5" placeholder="Friday Room/Time">
-                <input type="text" id="add-sched-6" placeholder="Saturday Room/Time">
+          <div class="admin-section" id="section-manage-courses">
+            <div class="admin-section-header">
+              <div>
+                <h3>Manage Courses</h3>
+                <p class="section-note">Edit or delete live board entries here.</p>
               </div>
             </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="add-year">Year</label>
-                <select id="add-year">
-                  <option value="1">1</option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                  <option value="4">4</option>
-                  <option value="5">5</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label for="add-trimester">Trimester</label>
-                <select id="add-trimester">
-                  <option value="1">I</option>
-                  <option value="2">II</option>
-                  <option value="3">III</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label for="add-current-session">Current Session</label>
-                <input type="number" id="add-current-session" value="0" min="0">
-              </div>
-              <div class="form-group">
-                <label for="add-total-sessions">Total Sessions</label>
-                <input type="number" id="add-total-sessions" value="30" min="1">
-              </div>
-            </div>
-            
-            <div class="form-group">
-              <label for="add-topic">Current Topic / Module</label>
-              <input type="text" id="add-topic" placeholder="e.g. Fundamental Rights">
-            </div>
-            <div class="form-group">
-              <label for="add-elective-check">
-                <input type="checkbox" id="add-elective-check"> Elective
-              </label>
-            </div>
-            <button type="submit" class="btn-primary">Add Course</button>
-            <p id="add-course-feedback" class="feedback"></p>
-          </form>
-        </div>
+            <div id="manage-courses-list"></div>
+          </div>
 
-        <!-- Manage Admins -->
-        <div class="admin-section restricted-section" id="section-manage-admins">
-          <h3>Manage Admins</h3>
-          <div id="admin-list"></div>
-          <form id="add-admin-form" class="inline-form">
-            <input type="email" id="add-admin-email" placeholder="email@nls.ac.in" required>
-            <button type="submit" class="btn-primary">Grant Admin</button>
-          </form>
-        </div>
+          <div class="admin-section" id="section-review-suggestions">
+            <div class="admin-section-header">
+              <div>
+                <h3>Review Suggestions</h3>
+                <p class="section-note">Student-submitted updates wait here until an admin approves or rejects them.</p>
+              </div>
+            </div>
+            <div id="suggestions-list"></div>
+          </div>
 
-        <!-- Delete Course -->
-        <div class="admin-section restricted-section" id="section-delete-course">
-          <h3>Delete Course</h3>
-          <div id="delete-course-list"></div>
+          <div class="admin-section" id="section-add-course">
+            <h3>Add New Course</h3>
+            <p class="section-note">Create a new live board entry for a specific year and trimester.</p>
+            <form id="add-course-form">
+              <div class="form-group">
+                <label for="course-template-select">Reuse Existing Course</label>
+                <select id="course-template-select">
+                  <option value="">Start from scratch</option>
+                </select>
+                <p id="course-template-helper" class="helper-text">Choose an existing course to reuse its shared details and add another section quickly.</p>
+              </div>
+
+              <div class="form-group">
+                <label for="add-name">Course Name</label>
+                <input type="text" id="add-name" placeholder="Defaults to Untitled Course">
+              </div>
+
+              <div class="form-group">
+                <label for="add-section">Section</label>
+                <input type="text" id="add-section" placeholder="e.g. A, B">
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="add-year">Year</label>
+                  <select id="add-year">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="add-trimester">Trimester</label>
+                  <select id="add-trimester">
+                    <option value="1">I</option>
+                    <option value="2">II</option>
+                    <option value="3">III</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="add-current-session">Current Session</label>
+                  <input type="number" id="add-current-session" value="0" min="0">
+                </div>
+                <div class="form-group">
+                  <label for="add-total-sessions">Total Sessions</label>
+                  <input type="number" id="add-total-sessions" value="30" min="1">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="add-topic">Current Topic / Module</label>
+                <input type="text" id="add-topic" placeholder="e.g. Fundamental Rights">
+              </div>
+
+              <div class="form-group checkbox-group">
+                <label for="add-elective-check">
+                  <input type="checkbox" id="add-elective-check"> Elective
+                </label>
+              </div>
+
+              <button type="submit" class="btn-primary">Add Course</button>
+              <p id="add-course-feedback" class="feedback"></p>
+            </form>
+          </div>
+
+          <div class="admin-section" id="section-manage-admins">
+            <h3>Manage Admin Hierarchy</h3>
+            <p class="section-note">Password-based accounts are super admins. Granted accounts are standard admins and sit below them in the hierarchy.</p>
+            <div id="admin-list"></div>
+            <form id="add-admin-form" class="inline-form">
+              <input type="email" id="add-admin-email" placeholder="email@nls.ac.in" required>
+              <button type="submit" class="btn-primary">Grant Admin</button>
+            </form>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Toast notifications -->
   <div id="toast-container"></div>
 
-  <script type="module" src="/js/app.js"></script>
+  <script type="module" src="./js/app.js"></script>
 </body>
 </html>
